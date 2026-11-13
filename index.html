@@ -41,10 +41,10 @@
   .hrow h2{margin:0;font-size:1.15rem;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .icon-btn{background:rgba(255,255,255,.15);color:#fff;padding:8px 12px;font-size:.9rem}
   .tabs{display:flex;margin-top:10px}
-  .tab{flex:1;background:none;color:rgba(255,255,255,.75);padding:10px 4px;border-radius:0;
-    border-bottom:3px solid transparent;font-weight:600;font-size:.95rem}
+  .tab{flex:1;background:none;color:rgba(255,255,255,.75);padding:10px 2px;border-radius:0;
+    border-bottom:3px solid transparent;font-weight:600;font-size:.86rem;white-space:nowrap}
   .tab.on{color:#fff;border-color:#fff}
-  .tab .n{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:10px;
+  .tab .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:3px;border-radius:10px;
     background:rgba(255,255,255,.25);font-size:.75rem}
   main{padding:12px 12px 110px;max-width:640px;margin:0 auto}
   .grp{margin:16px 4px 6px;font-size:.8rem;font-weight:700;text-transform:uppercase;
@@ -67,7 +67,29 @@
   .a-done{background:var(--ok);color:#fff}
   .a-drop{background:#f1f3f2;color:var(--sub)}
   .a-del{background:#fdecec;color:var(--bad);flex:0 0 auto!important;padding:9px 12px!important}
-  .item.entregado{opacity:.75}
+  .item.entregado{opacity:.85}
+  .a-price{background:#fff7e6;color:#92400e}
+  .precio{display:inline-block;font-weight:700;color:#065f46;background:#dcfce7;
+    padding:2px 9px;border-radius:20px;font-size:.85rem;margin-left:auto}
+  .limpiar{display:flex;justify-content:flex-end;margin:4px 2px 10px}
+  .limpiar button{background:#fdecec;color:var(--bad);padding:8px 12px;font-size:.88rem;font-weight:600}
+  .mes{display:flex;align-items:center;justify-content:space-between;margin:6px 0 12px}
+  .mes button{background:#fff;color:var(--pri);width:44px;height:40px;font-size:1.3rem;
+    box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .mes b{font-size:1.05rem;text-transform:capitalize}
+  .total{background:var(--pri);color:#fff;border-radius:var(--r);padding:16px;text-align:center}
+  .total .eur{font-size:2rem;font-weight:800}
+  .total small{opacity:.85}
+  .box{background:#fff;border-radius:var(--r);padding:12px 14px;margin-top:10px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .box h4{margin:0 0 6px;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--sub)}
+  .linea{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .linea:last-child{border-bottom:0}
+  .linea .t{flex:1;min-width:0}
+  .linea .t small{display:block;color:var(--sub);font-size:.8rem}
+  .linea .v{font-weight:700;white-space:nowrap}
+  .nota{color:var(--sub);font-size:.85rem;text-align:center;margin-top:10px}
+  .big-input{font-size:1.6rem;text-align:center;font-weight:700}
   .empty{text-align:center;color:var(--sub);padding:48px 16px}
   .empty div{font-size:2.5rem}
   .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:6;
@@ -147,6 +169,7 @@
       <button class="tab on" data-t="pend">Pendiente<span class="n" id="nPend">0</span></button>
       <button class="tab" data-t="mio">Lo mío<span class="n" id="nMio">0</span></button>
       <button class="tab" data-t="hecho">Entregado</button>
+      <button class="tab" data-t="gastos">💶 Gastos</button>
     </div>
   </header>
   <main id="lista"></main>
@@ -190,6 +213,20 @@
     <button class="btn ghost" id="bDejar">Salir de esta familia</button>
     <button class="btn ghost" id="bSalir2">Cerrar sesión</button>
     <button class="btn" data-close style="margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
+<!-- Sheet: precio -->
+<div class="back hide" id="sPrecio">
+  <div class="sheet">
+    <h3 id="spTitulo">¿Cuánto ha costado?</h3>
+    <p style="color:var(--sub);margin:4px 0 0" id="spQue"></p>
+    <label>Precio en euros</label>
+    <input id="spValor" class="big-input" inputmode="decimal" placeholder="0,00 €">
+    <div class="row2">
+      <button class="btn ghost" id="spSin">Sin precio</button>
+      <button class="btn" id="spOk">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -259,6 +296,32 @@ function cuando(ts){
   if (d.toDateString() === ayer.toDateString()) return "ayer " + hh;
   return d.toLocaleDateString("es-ES",{day:"numeric",month:"short"}) + " " + hh;
 }
+const EUR = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
+const eur = n => EUR.format(n || 0);
+function leerPrecio(txt){
+  const n = parseFloat(String(txt).replace(/[€\s]/g, "").replace(",", "."));
+  return isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+}
+// Abre la hoja de precio. Devuelve: número, null (sin precio) o undefined (cancelado)
+function pedirPrecio(item, titulo){
+  return new Promise(res => {
+    const sh = $("#sPrecio"), inp = $("#spValor");
+    $("#spTitulo").textContent = titulo;
+    $("#spQue").textContent = item.que;
+    inp.value = item.precio != null ? String(item.precio).replace(".", ",") : "";
+    sh.classList.remove("hide"); setTimeout(() => inp.focus(), 150);
+    const fin = v => { sh.classList.add("hide"); sh.onclick = $("#spOk").onclick = $("#spSin").onclick = null; res(v); };
+    $("#spOk").onclick = () => {
+      const p = leerPrecio(inp.value);
+      if (inp.value.trim() && p === null) return toast("Precio no válido.");
+      fin(inp.value.trim() ? p : null);
+    };
+    $("#spSin").onclick = () => fin(null);
+    sh.onclick = e => { if (e.target === sh) fin(undefined); };
+  });
+}
+let mesVista = new Date(); mesVista.setDate(1);
+
 const colorDe = uid => familia?.miembrosInfo?.[uid]?.color || "#999";
 const nombreDe = (uid, fallback) => familia?.miembrosInfo?.[uid]?.nombre || fallback || "¿?";
 
@@ -401,8 +464,9 @@ function pintar(){
   let lista;
   if (tab === "pend") lista = activos;
   else if (tab === "mio") lista = activos.filter(i => i.pedidoPor === user.uid || i.encargadoPor === user.uid);
-  else lista = items.filter(i => i.estado === "entregado")
-      .sort((a,b) => (b.entregadoEn?.seconds||0) - (a.entregadoEn?.seconds||0)).slice(0, 40);
+  else if (tab === "gastos") return pintarGastos();
+  else lista = items.filter(i => i.estado === "entregado" && !i.archivado)
+      .sort((a,b) => (b.entregadoEn?.seconds||0) - (a.entregadoEn?.seconds||0));
 
   const main = $("#lista");
   if (!lista.length){
@@ -411,7 +475,12 @@ function pintar(){
     return;
   }
 
-  if (tab === "hecho"){ main.innerHTML = lista.map(card).join(""); return; }
+  if (tab === "hecho"){
+    main.innerHTML = `<div class="limpiar"><button data-a="limpiar">🧹 Quitar todos (${lista.length})</button></div>`
+      + lista.map(card).join("")
+      + `<div class="nota">Al quitarlos de aquí, los precios siguen contando en 💶 Gastos.</div>`;
+    return;
+  }
 
   // Agrupar por lugar, ordenar por urgencia y fecha
   const grupos = {};
@@ -442,10 +511,13 @@ function card(i){
   if (i.estado === "encargado" && yoLlevo) acts =
     `<button class="a-drop" data-a="drop" data-id="${i.id}">Soltar</button>
      <button class="a-done" data-a="done" data-id="${i.id}">✅ Entregado</button>`;
+  if (i.estado === "entregado") acts =
+    `<button class="a-price" data-a="price" data-id="${i.id}">💶 ${i.precio != null ? "Cambiar precio" : "Poner precio"}</button>
+     <button class="a-del" data-a="arch" data-id="${i.id}" aria-label="Quitar">🗑</button>`;
   if (yoPido && i.estado !== "entregado") acts += `<button class="a-del" data-a="del" data-id="${i.id}" aria-label="Borrar">🗑</button>`;
 
   return `<div class="item ${i.estado}" style="--c:${c}">
-    <div class="top"><span class="chip">Para ${esc(yoPido ? "mí" : nombreDe(i.pedidoPor, i.pedidoPorNombre))}</span>${urg}</div>
+    <div class="top"><span class="chip">Para ${esc(yoPido ? "mí" : nombreDe(i.pedidoPor, i.pedidoPorNombre))}</span>${urg}${i.precio != null ? `<span class="precio">${eur(i.precio)}</span>` : ""}</div>
     <div class="que">${esc(i.que)}</div>
     ${i.detalle ? `<div class="det">${esc(i.detalle)}</div>` : ""}
     <div class="est">${est}</div>
@@ -453,10 +525,66 @@ function card(i){
   </div>`;
 }
 
+/* ---------- Gastos ---------- */
+function pintarGastos(){
+  const y = mesVista.getFullYear(), m = mesVista.getMonth();
+  const delMes = items.filter(i => {
+    if (i.estado !== "entregado" || !i.entregadoEn?.toDate) return false;
+    const d = i.entregadoEn.toDate(); return d.getFullYear() === y && d.getMonth() === m;
+  });
+  const conPrecio = delMes.filter(i => i.precio != null)
+    .sort((a,b) => b.entregadoEn.seconds - a.entregadoEn.seconds);
+  const sinPrecio = delMes.length - conPrecio.length;
+  const total = conPrecio.reduce((s,i) => s + i.precio, 0);
+
+  const sumar = campo => {
+    const r = {};
+    conPrecio.forEach(i => { const k = i[campo] || "?"; r[k] = (r[k] || 0) + i.precio; });
+    return Object.entries(r).sort((a,b) => b[1] - a[1]);
+  };
+  const filaPersona = ([uid, v]) => `<div class="linea"><span class="dot" style="--c:${colorDe(uid)}"></span>
+    <div class="t">${esc(nombreDe(uid))}</div><div class="v">${eur(v)}</div></div>`;
+  const nombreMes = mesVista.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  const esActual = y === new Date().getFullYear() && m === new Date().getMonth();
+
+  $("#lista").innerHTML = `
+    <div class="mes">
+      <button data-a="mes" data-d="-1" aria-label="Mes anterior">‹</button>
+      <b>${nombreMes}</b>
+      <button data-a="mes" data-d="1" aria-label="Mes siguiente" ${esActual ? "style='visibility:hidden'" : ""}>›</button>
+    </div>
+    <div class="total"><small>Gastado este mes</small><div class="eur">${eur(total)}</div>
+      <small>${conPrecio.length} compra${conPrecio.length === 1 ? "" : "s"} con precio</small></div>
+    ${conPrecio.length ? `
+    <div class="box"><h4>Para quién era</h4>${sumar("pedidoPor").map(filaPersona).join("")}</div>
+    <div class="box"><h4>Quién lo pagó</h4>${sumar("encargadoPor").map(filaPersona).join("")}</div>
+    <div class="box"><h4>Detalle</h4>${conPrecio.map(i => `<div class="linea">
+      <span class="dot" style="--c:${colorDe(i.pedidoPor)}"></span>
+      <div class="t">${esc(i.que)}<small>${esc(i.donde || "")} · ${cuando(i.entregadoEn)} · pagó ${esc(nombreDe(i.encargadoPor, i.encargadoPorNombre))}</small></div>
+      <div class="v">${eur(i.precio)}</div></div>`).join("")}</div>` :
+    `<div class="empty"><div>💶</div>No hay compras con precio este mes.</div>`}
+    ${sinPrecio ? `<div class="nota">${sinPrecio} entrega${sinPrecio === 1 ? "" : "s"} sin precio este mes.</div>` : ""}`;
+}
+
 /* ---------- Acciones sobre encargos ---------- */
 $("#lista").onclick = async e => {
   const b = e.target.closest("button[data-a]"); if (!b) return;
+  if (b.dataset.a === "mes"){ mesVista.setMonth(mesVista.getMonth() + Number(b.dataset.d)); return pintar(); }
+  if (b.dataset.a === "limpiar"){
+    const hechos = items.filter(i => i.estado === "entregado" && !i.archivado);
+    if (!hechos.length || !confirm(`¿Quitar los ${hechos.length} entregados de la lista?`)) return;
+    try {
+      for (let k = 0; k < hechos.length; k += 400){
+        const bt = writeBatch(db);
+        hechos.slice(k, k + 400).forEach(i => bt.update(doc(db, "familias", familia.id, "items", i.id), { archivado: true }));
+        await bt.commit();
+      }
+      toast("Lista limpia 🧹");
+    } catch(err){ toast(errTxt(err)); }
+    return;
+  }
   const ref = doc(db, "familias", familia.id, "items", b.dataset.id);
+  const it = items.find(x => x.id === b.dataset.id) || {};
   const miNombre = nombreDe(user.uid);
   try {
     if (b.dataset.a === "take")
@@ -464,9 +592,17 @@ $("#lista").onclick = async e => {
     if (b.dataset.a === "drop")
       await updateDoc(ref, { estado: "pendiente", encargadoPor: deleteField(), encargadoPorNombre: deleteField(), encargadoEn: deleteField() });
     if (b.dataset.a === "done"){
-      await updateDoc(ref, { estado: "entregado", entregadoEn: serverTimestamp() });
+      const p = await pedirPrecio(it, "¿Cuánto ha costado?");
+      if (p === undefined) return;
+      await updateDoc(ref, { estado: "entregado", entregadoEn: serverTimestamp(), precio: p === null ? deleteField() : p });
       toast("¡Entregado! ✅");
     }
+    if (b.dataset.a === "price"){
+      const p = await pedirPrecio(it, "Precio de la compra");
+      if (p === undefined) return;
+      await updateDoc(ref, { precio: p === null ? deleteField() : p });
+    }
+    if (b.dataset.a === "arch") await updateDoc(ref, { archivado: true });
     if (b.dataset.a === "del" && confirm("¿Borrar este encargo?")) await deleteDoc(ref);
   } catch(err){ toast(errTxt(err)); }
 };
