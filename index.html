@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>MisRecados</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#f4f6f5; --card:#fff; --txt:#1c2422; --sub:#62706c; --line:#e2e7e5;
+    --pri:#0f766e; --pri2:#115e59; --ok:#16a34a; --warn:#d97706; --bad:#dc2626;
+    --r:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .hide{display:none!important}
+  button{font:inherit;cursor:pointer;border:0;border-radius:10px}
+  input,select,textarea{font:inherit;width:100%;padding:12px;border:1px solid var(--line);
+    border-radius:10px;background:#fff;color:var(--txt)}
+  label{display:block;font-size:.85rem;color:var(--sub);margin:12px 0 4px}
+  .btn{background:var(--pri);color:#fff;padding:12px 16px;font-weight:600;width:100%}
+  .btn:active{background:var(--pri2)}
+  .btn.sec{background:#e6f0ee;color:var(--pri2)}
+  .btn.ghost{background:transparent;color:var(--sub);font-weight:500}
+  .center{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+    padding:24px;max-width:420px;margin:0 auto}
+  .center h1{margin:0 0 4px;color:var(--pri);font-size:2rem}
+  .center p.sub{margin:0 0 24px;color:var(--sub)}
+  .stack>*+*{margin-top:10px}
+  .sep{text-align:center;color:var(--sub);font-size:.85rem;margin:18px 0}
+  .err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:8px}
+
+  /* App */
+  header{position:sticky;top:0;z-index:5;background:var(--pri);color:#fff;
+    padding:calc(env(safe-area-inset-top) + 12px) 16px 0}
+  .hrow{display:flex;align-items:center;gap:8px}
+  .hrow h2{margin:0;font-size:1.15rem;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .icon-btn{background:rgba(255,255,255,.15);color:#fff;padding:8px 12px;font-size:.9rem}
+  .tabs{display:flex;margin-top:10px}
+  .tab{flex:1;background:none;color:rgba(255,255,255,.75);padding:10px 4px;border-radius:0;
+    border-bottom:3px solid transparent;font-weight:600;font-size:.95rem}
+  .tab.on{color:#fff;border-color:#fff}
+  .tab .n{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:10px;
+    background:rgba(255,255,255,.25);font-size:.75rem}
+  main{padding:12px 12px 110px;max-width:640px;margin:0 auto}
+  .grp{margin:16px 4px 6px;font-size:.8rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--sub)}
+  .item{background:var(--card);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);border-left:5px solid var(--c,#999)}
+  .item .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:700;
+    padding:2px 9px;border-radius:20px;color:#fff;background:var(--c,#999)}
+  .urg{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:20px}
+  .urg.hoy{background:#fef3c7;color:#92400e}
+  .urg.urgente{background:#fee2e2;color:#991b1b}
+  .item .que{font-size:1.05rem;font-weight:600;margin:6px 0 2px}
+  .item .det{color:var(--sub);font-size:.92rem;white-space:pre-wrap}
+  .item .est{font-size:.82rem;color:var(--sub);margin-top:6px}
+  .item .est b{color:var(--txt)}
+  .acts{display:flex;gap:8px;margin-top:10px}
+  .acts button{flex:1;padding:9px 6px;font-size:.9rem;font-weight:600}
+  .a-take{background:#e6f0ee;color:var(--pri2)}
+  .a-done{background:var(--ok);color:#fff}
+  .a-drop{background:#f1f3f2;color:var(--sub)}
+  .a-del{background:#fdecec;color:var(--bad);flex:0 0 auto!important;padding:9px 12px!important}
+  .item.entregado{opacity:.75}
+  .empty{text-align:center;color:var(--sub);padding:48px 16px}
+  .empty div{font-size:2.5rem}
+  .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:6;
+    width:60px;height:60px;border-radius:50%;background:var(--pri);color:#fff;font-size:2rem;
+    box-shadow:0 4px 14px rgba(15,118,110,.4)}
+
+  /* Sheet */
+  .back{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;display:flex;align-items:flex-end}
+  .sheet{background:#fff;width:100%;max-width:640px;margin:0 auto;border-radius:18px 18px 0 0;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+  .sheet h3{margin:0 0 4px}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;padding:10px 4px;background:#f1f3f2;color:var(--sub);font-weight:600;font-size:.9rem}
+  .seg button.on{background:var(--pri);color:#fff}
+  .seg button.on[data-v=hoy]{background:var(--warn)}
+  .seg button.on[data-v=urgente]{background:var(--bad)}
+  .row2{display:flex;gap:10px;margin-top:18px}
+  .members{list-style:none;padding:0;margin:8px 0}
+  .members li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .dot{width:14px;height:14px;border-radius:50%;background:var(--c)}
+  .code{font-size:1.8rem;font-weight:800;letter-spacing:.2em;text-align:center;color:var(--pri);
+    background:#e6f0ee;border-radius:12px;padding:12px;margin:8px 0}
+  .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:#1c2422;color:#fff;padding:10px 16px;border-radius:10px;z-index:30;font-size:.92rem;
+    max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+</style>
+</head>
+<body>
+
+<!-- Cargando -->
+<section id="vCarga" class="center"><p class="sub" style="text-align:center">Cargando…</p></section>
+
+<!-- Login -->
+<section id="vLogin" class="center hide">
+  <h1>MisRecados</h1>
+  <p class="sub">Compras y recados de la familia, en una sola lista.</p>
+  <div class="stack">
+    <button class="btn" id="bGoogle">Entrar con Google</button>
+  </div>
+  <div class="sep">o con email</div>
+  <div class="stack">
+    <input id="lEmail" type="email" placeholder="Email" autocomplete="email">
+    <input id="lPass" type="password" placeholder="Contraseña (mín. 6)" autocomplete="current-password">
+    <button class="btn sec" id="bEntrar">Entrar</button>
+    <button class="btn ghost" id="bRegistro">Crear cuenta nueva</button>
+  </div>
+  <div class="err" id="lErr"></div>
+</section>
+
+<!-- Perfil + familia -->
+<section id="vFamilia" class="center hide">
+  <h1>Hola 👋</h1>
+  <p class="sub">¿Cómo te llamas en la familia?</p>
+  <input id="fNombre" placeholder="Tu nombre (ej. Mamá, Luis, Ana)" maxlength="20">
+  <div class="sep">Luego, una de dos:</div>
+  <div class="stack">
+    <input id="fFamNombre" placeholder="Nombre de la familia (ej. Casa Cunqueiro)" maxlength="30">
+    <button class="btn" id="bCrear">Crear familia nueva</button>
+  </div>
+  <div class="sep">o únete con un código</div>
+  <div class="stack">
+    <input id="fCodigo" placeholder="CÓDIGO" maxlength="6" style="text-transform:uppercase;letter-spacing:.2em;text-align:center">
+    <button class="btn sec" id="bUnirse">Unirme a mi familia</button>
+  </div>
+  <div class="err" id="fErr"></div>
+  <button class="btn ghost" id="bSalir1" style="margin-top:16px">Cerrar sesión</button>
+</section>
+
+<!-- App -->
+<section id="vApp" class="hide">
+  <header>
+    <div class="hrow">
+      <h2 id="hFam">Familia</h2>
+      <button class="icon-btn" id="bFamilia">👪 Familia</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-t="pend">Pendiente<span class="n" id="nPend">0</span></button>
+      <button class="tab" data-t="mio">Lo mío<span class="n" id="nMio">0</span></button>
+      <button class="tab" data-t="hecho">Entregado</button>
+    </div>
+  </header>
+  <main id="lista"></main>
+  <button class="fab" id="bNuevo" aria-label="Añadir">+</button>
+</section>
+
+<!-- Sheet: nuevo -->
+<div class="back hide" id="sNuevo">
+  <div class="sheet">
+    <h3>Nuevo encargo</h3>
+    <label>¿Qué necesitas?</label>
+    <input id="nQue" placeholder="Ej. Leche, recoger paquete…" maxlength="60">
+    <label>Detalles (opcional)</label>
+    <textarea id="nDet" rows="2" placeholder="Cantidad, marca, horario…" maxlength="200"></textarea>
+    <label>¿Dónde?</label>
+    <input id="nDonde" list="dlDonde" placeholder="Supermercado, farmacia…" maxlength="30">
+    <datalist id="dlDonde"></datalist>
+    <label>Urgencia</label>
+    <div class="seg" id="nUrg">
+      <button data-v="normal" class="on">Normal</button>
+      <button data-v="hoy">Hoy</button>
+      <button data-v="urgente">Urgente</button>
+    </div>
+    <div class="row2">
+      <button class="btn ghost" data-close>Cancelar</button>
+      <button class="btn" id="bGuardar">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sheet: familia -->
+<div class="back hide" id="sFam">
+  <div class="sheet">
+    <h3 id="sfNombre">Familia</h3>
+    <p class="sub" style="color:var(--sub);margin:4px 0">Código para invitar:</p>
+    <div class="code" id="sfCodigo">——</div>
+    <button class="btn sec" id="bCompartir">Compartir invitación</button>
+    <label>Miembros</label>
+    <ul class="members" id="sfMiembros"></ul>
+    <button class="btn ghost" id="bNotif">🔔 Activar avisos en este móvil</button>
+    <button class="btn ghost" id="bDejar">Salir de esta familia</button>
+    <button class="btn ghost" id="bSalir2">Cerrar sesión</button>
+    <button class="btn" data-close style="margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
+<div class="toast hide" id="toast"></div>
+
+<script type="module">
+/* =========================================================
+   1) PEGA AQUÍ LA CONFIGURACIÓN DE TU PROYECTO FIREBASE
+   (Consola Firebase → Configuración del proyecto → Tus apps → Web)
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "PEGA_AQUI",
+  authDomain: "PEGA_AQUI.firebaseapp.com",
+  projectId: "PEGA_AQUI",
+  storageBucket: "PEGA_AQUI.appspot.com",
+  messagingSenderId: "PEGA_AQUI",
+  appId: "PEGA_AQUI"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot,
+  writeBatch, arrayUnion, arrayRemove, serverTimestamp, deleteField
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
+const COLORES = ["#2563eb","#db2777","#ea580c","#7c3aed","#059669","#ca8a04","#0891b2","#dc2626"];
+const DONDE_BASE = ["Supermercado","Farmacia","Panadería","Carnicería","Frutería","Correos","Ferretería","Banco","Otro"];
+const URG_ORDEN = { urgente:0, hoy:1, normal:2 };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const vistas = ["vCarga","vLogin","vFamilia","vApp"];
+const ver = id => vistas.forEach(v => $("#"+v).classList.toggle("hide", v !== id));
+
+let user = null, perfil = null, familia = null, items = [];
+let unsubFam = null, unsubItems = null, tab = "pend", primeraCarga = true;
+
+function toast(msg, ms = 2600){
+  const t = $("#toast"); t.textContent = msg; t.classList.remove("hide");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hide"), ms);
+}
+function errTxt(e){
+  const c = e?.code || "";
+  if (c.includes("invalid-credential") || c.includes("wrong-password")) return "Email o contraseña incorrectos.";
+  if (c.includes("email-already-in-use")) return "Ese email ya tiene cuenta. Pulsa Entrar.";
+  if (c.includes("weak-password")) return "La contraseña debe tener al menos 6 caracteres.";
+  if (c.includes("invalid-email")) return "El email no es válido.";
+  if (c.includes("popup-closed")) return "";
+  if (c.includes("permission-denied")) return "Sin permiso. Revisa el código o las reglas de Firestore.";
+  return e?.message || "Ha ocurrido un error.";
+}
+function cuando(ts){
+  if (!ts?.toDate) return "";
+  const d = ts.toDate(), hoy = new Date();
+  const hh = d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
+  if (d.toDateString() === hoy.toDateString()) return "hoy " + hh;
+  const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
+  if (d.toDateString() === ayer.toDateString()) return "ayer " + hh;
+  return d.toLocaleDateString("es-ES",{day:"numeric",month:"short"}) + " " + hh;
+}
+const colorDe = uid => familia?.miembrosInfo?.[uid]?.color || "#999";
+const nombreDe = (uid, fallback) => familia?.miembrosInfo?.[uid]?.nombre || fallback || "¿?";
+
+/* ---------- Login ---------- */
+$("#bGoogle").onclick = async () => {
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+  catch(e){ $("#lErr").textContent = errTxt(e); }
+};
+$("#bEntrar").onclick = async () => {
+  try { await signInWithEmailAndPassword(auth, $("#lEmail").value.trim(), $("#lPass").value); }
+  catch(e){ $("#lErr").textContent = errTxt(e); }
+};
+$("#bRegistro").onclick = async () => {
+  try { await createUserWithEmailAndPassword(auth, $("#lEmail").value.trim(), $("#lPass").value); }
+  catch(e){ $("#lErr").textContent = errTxt(e); }
+};
+const salir = () => { pararEscuchas(); signOut(auth); };
+$("#bSalir1").onclick = salir; $("#bSalir2").onclick = salir;
+
+onAuthStateChanged(auth, async u => {
+  user = u; pararEscuchas();
+  if (!u){ ver("vLogin"); return; }
+  const snap = await getDoc(doc(db, "usuarios", u.uid));
+  perfil = snap.exists() ? snap.data() : null;
+  if (perfil?.familiaId) entrarFamilia(perfil.familiaId);
+  else {
+    $("#fNombre").value = perfil?.nombre || (u.displayName || "").split(" ")[0] || "";
+    ver("vFamilia");
+  }
+});
+
+/* ---------- Crear / unirse ---------- */
+function nuevoCodigo(){
+  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from(crypto.getRandomValues(new Uint8Array(6)), b => abc[b % abc.length]).join("");
+}
+function nombreValido(){
+  const n = $("#fNombre").value.trim();
+  if (!n){ $("#fErr").textContent = "Escribe tu nombre primero."; return null; }
+  return n;
+}
+$("#bCrear").onclick = async () => {
+  const nombre = nombreValido(); if (!nombre) return;
+  const famNombre = $("#fFamNombre").value.trim() || "Mi familia";
+  $("#fErr").textContent = "";
+  for (let intento = 0; intento < 4; intento++){
+    const codigo = nuevoCodigo();
+    const famRef = doc(collection(db, "familias"));
+    const b = writeBatch(db);
+    b.set(famRef, {
+      nombre: famNombre, codigo, creadoPor: user.uid, creado: serverTimestamp(),
+      miembros: [user.uid],
+      miembrosInfo: { [user.uid]: { nombre, color: COLORES[0] } }
+    });
+    b.set(doc(db, "codigos", codigo), { familiaId: famRef.id, creadoPor: user.uid });
+    b.set(doc(db, "usuarios", user.uid), { nombre, familiaId: famRef.id }, { merge: true });
+    try { await b.commit(); entrarFamilia(famRef.id); return; }
+    catch(e){ if (!String(e.code).includes("permission-denied")) { $("#fErr").textContent = errTxt(e); return; } }
+  }
+  $("#fErr").textContent = "No se pudo crear. Inténtalo otra vez.";
+};
+$("#bUnirse").onclick = async () => {
+  const nombre = nombreValido(); if (!nombre) return;
+  const codigo = $("#fCodigo").value.trim().toUpperCase();
+  if (codigo.length !== 6){ $("#fErr").textContent = "El código tiene 6 caracteres."; return; }
+  $("#fErr").textContent = "";
+  try {
+    const c = await getDoc(doc(db, "codigos", codigo));
+    if (!c.exists()){ $("#fErr").textContent = "Ese código no existe."; return; }
+    const fid = c.data().familiaId;
+    const color = COLORES[Math.floor(Math.random()*COLORES.length)];
+    await updateDoc(doc(db, "familias", fid), {
+      miembros: arrayUnion(user.uid),
+      [`miembrosInfo.${user.uid}`]: { nombre, color }
+    });
+    await setDoc(doc(db, "usuarios", user.uid), { nombre, familiaId: fid }, { merge: true });
+    entrarFamilia(fid);
+  } catch(e){ $("#fErr").textContent = errTxt(e); }
+};
+
+/* ---------- Escuchas en tiempo real ---------- */
+function pararEscuchas(){
+  unsubFam?.(); unsubItems?.(); unsubFam = unsubItems = null;
+  familia = null; items = []; primeraCarga = true;
+}
+function entrarFamilia(fid){
+  pararEscuchas(); ver("vCarga");
+  unsubFam = onSnapshot(doc(db, "familias", fid), s => {
+    if (!s.exists()) return;
+    familia = { id: s.id, ...s.data() };
+    if (!familia.miembros.includes(user.uid)){ pararEscuchas(); ver("vFamilia"); return; }
+    $("#hFam").textContent = familia.nombre;
+    pintar(); pintarFamilia(); ver("vApp");
+  }, e => { $("#fErr").textContent = errTxt(e); ver("vFamilia"); });
+
+  unsubItems = onSnapshot(collection(db, "familias", fid, "items"), s => {
+    if (!primeraCarga){
+      s.docChanges().forEach(ch => {
+        const d = ch.doc.data();
+        if (ch.type === "added" && d.pedidoPor !== user.uid && d.urgencia === "urgente")
+          avisar(`🔴 ${nombreDe(d.pedidoPor, d.pedidoPorNombre)} necesita: ${d.que}`);
+        if (ch.type === "modified" && d.pedidoPor === user.uid && d.estado === "entregado" && d.encargadoPor !== user.uid)
+          avisar(`✅ ${nombreDe(d.encargadoPor, d.encargadoPorNombre)} te ha traído: ${d.que}`);
+      });
+    }
+    primeraCarga = false;
+    items = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    pintar();
+  });
+}
+
+/* ---------- Avisos (con la app abierta o en segundo plano reciente) ---------- */
+function avisar(msg){
+  toast(msg, 4000);
+  if ("Notification" in window && Notification.permission === "granted" && document.hidden){
+    navigator.serviceWorker?.ready.then(r => r.showNotification("MisRecados", { body: msg, icon: "icon-192.png" }))
+      .catch(() => new Notification("MisRecados", { body: msg }));
+  }
+}
+$("#bNotif").onclick = async () => {
+  if (!("Notification" in window)) return toast("Este navegador no admite avisos.");
+  const p = await Notification.requestPermission();
+  toast(p === "granted" ? "Avisos activados 🔔" : "Avisos no permitidos.");
+};
+
+/* ---------- Pintar lista ---------- */
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+  tab = b.dataset.t;
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
+  pintar();
+});
+
+function pintar(){
+  if (!familia) return;
+  const activos = items.filter(i => i.estado !== "entregado");
+  $("#nPend").textContent = activos.length;
+  $("#nMio").textContent = items.filter(i => i.estado !== "entregado" &&
+    (i.pedidoPor === user.uid || i.encargadoPor === user.uid)).length;
+
+  let lista;
+  if (tab === "pend") lista = activos;
+  else if (tab === "mio") lista = activos.filter(i => i.pedidoPor === user.uid || i.encargadoPor === user.uid);
+  else lista = items.filter(i => i.estado === "entregado")
+      .sort((a,b) => (b.entregadoEn?.seconds||0) - (a.entregadoEn?.seconds||0)).slice(0, 40);
+
+  const main = $("#lista");
+  if (!lista.length){
+    main.innerHTML = `<div class="empty"><div>${tab==="hecho"?"📭":"🎉"}</div>
+      ${tab==="hecho" ? "Aún no hay nada entregado." : "No hay nada pendiente.<br>Pulsa + para apuntar algo."}</div>`;
+    return;
+  }
+
+  if (tab === "hecho"){ main.innerHTML = lista.map(card).join(""); return; }
+
+  // Agrupar por lugar, ordenar por urgencia y fecha
+  const grupos = {};
+  lista.forEach(i => (grupos[i.donde || "Otro"] ??= []).push(i));
+  const orden = Object.keys(grupos).sort((a,b) => {
+    const ua = Math.min(...grupos[a].map(i => URG_ORDEN[i.urgencia] ?? 2));
+    const ub = Math.min(...grupos[b].map(i => URG_ORDEN[i.urgencia] ?? 2));
+    return ua - ub || a.localeCompare(b, "es");
+  });
+  main.innerHTML = orden.map(g => {
+    const arr = grupos[g].sort((a,b) => (URG_ORDEN[a.urgencia]??2) - (URG_ORDEN[b.urgencia]??2)
+      || (a.creado?.seconds||0) - (b.creado?.seconds||0));
+    return `<div class="grp">📍 ${esc(g)} · ${arr.length}</div>` + arr.map(card).join("");
+  }).join("");
+}
+
+function card(i){
+  const c = colorDe(i.pedidoPor);
+  const yoPido = i.pedidoPor === user.uid, yoLlevo = i.encargadoPor === user.uid;
+  const urg = i.urgencia && i.urgencia !== "normal"
+    ? `<span class="urg ${i.urgencia}">${i.urgencia === "hoy" ? "HOY" : "URGENTE"}</span>` : "";
+  let est = `Pedido ${cuando(i.creado)}`;
+  if (i.estado === "encargado") est = `🚶 Se lo lleva <b>${esc(yoLlevo ? "tú" : nombreDe(i.encargadoPor, i.encargadoPorNombre))}</b>`;
+  if (i.estado === "entregado") est = `✅ Entregado por <b>${esc(yoLlevo ? "ti" : nombreDe(i.encargadoPor, i.encargadoPorNombre))}</b> · ${cuando(i.entregadoEn)} · ${esc(i.donde||"")}`;
+
+  let acts = "";
+  if (i.estado === "pendiente") acts = `<button class="a-take" data-a="take" data-id="${i.id}">🙋 Me lo llevo yo</button>`;
+  if (i.estado === "encargado" && yoLlevo) acts =
+    `<button class="a-drop" data-a="drop" data-id="${i.id}">Soltar</button>
+     <button class="a-done" data-a="done" data-id="${i.id}">✅ Entregado</button>`;
+  if (yoPido && i.estado !== "entregado") acts += `<button class="a-del" data-a="del" data-id="${i.id}" aria-label="Borrar">🗑</button>`;
+
+  return `<div class="item ${i.estado}" style="--c:${c}">
+    <div class="top"><span class="chip">Para ${esc(yoPido ? "mí" : nombreDe(i.pedidoPor, i.pedidoPorNombre))}</span>${urg}</div>
+    <div class="que">${esc(i.que)}</div>
+    ${i.detalle ? `<div class="det">${esc(i.detalle)}</div>` : ""}
+    <div class="est">${est}</div>
+    ${acts ? `<div class="acts">${acts}</div>` : ""}
+  </div>`;
+}
+
+/* ---------- Acciones sobre encargos ---------- */
+$("#lista").onclick = async e => {
+  const b = e.target.closest("button[data-a]"); if (!b) return;
+  const ref = doc(db, "familias", familia.id, "items", b.dataset.id);
+  const miNombre = nombreDe(user.uid);
+  try {
+    if (b.dataset.a === "take")
+      await updateDoc(ref, { estado: "encargado", encargadoPor: user.uid, encargadoPorNombre: miNombre, encargadoEn: serverTimestamp() });
+    if (b.dataset.a === "drop")
+      await updateDoc(ref, { estado: "pendiente", encargadoPor: deleteField(), encargadoPorNombre: deleteField(), encargadoEn: deleteField() });
+    if (b.dataset.a === "done"){
+      await updateDoc(ref, { estado: "entregado", entregadoEn: serverTimestamp() });
+      toast("¡Entregado! ✅");
+    }
+    if (b.dataset.a === "del" && confirm("¿Borrar este encargo?")) await deleteDoc(ref);
+  } catch(err){ toast(errTxt(err)); }
+};
+
+/* ---------- Nuevo encargo ---------- */
+let urgSel = "normal";
+$("#nUrg").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  urgSel = b.dataset.v;
+  $("#nUrg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+};
+$("#bNuevo").onclick = () => {
+  const usados = [...new Set(items.map(i => i.donde).filter(Boolean))];
+  $("#dlDonde").innerHTML = [...new Set([...usados, ...DONDE_BASE])].map(d => `<option value="${esc(d)}">`).join("");
+  $("#nQue").value = ""; $("#nDet").value = ""; $("#nDonde").value = "";
+  urgSel = "normal";
+  $("#nUrg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === "normal"));
+  $("#sNuevo").classList.remove("hide");
+  setTimeout(() => $("#nQue").focus(), 150);
+};
+$("#bGuardar").onclick = async () => {
+  const que = $("#nQue").value.trim();
+  if (!que) return toast("Escribe qué necesitas.");
+  const donde = $("#nDonde").value.trim();
+  $("#sNuevo").classList.add("hide");
+  try {
+    await addDoc(collection(db, "familias", familia.id, "items"), {
+      que, detalle: $("#nDet").value.trim(),
+      donde: donde ? donde.charAt(0).toUpperCase() + donde.slice(1) : "Otro",
+      urgencia: urgSel, estado: "pendiente",
+      pedidoPor: user.uid, pedidoPorNombre: nombreDe(user.uid),
+      creado: serverTimestamp()
+    });
+  } catch(e){ toast(errTxt(e)); }
+};
+
+/* ---------- Panel familia ---------- */
+function pintarFamilia(){
+  $("#sfNombre").textContent = familia.nombre;
+  $("#sfCodigo").textContent = familia.codigo;
+  $("#sfMiembros").innerHTML = familia.miembros.map(uid =>
+    `<li><span class="dot" style="--c:${colorDe(uid)}"></span>${esc(nombreDe(uid))}${uid===user.uid?" <small style='color:var(--sub)'>(tú)</small>":""}</li>`).join("");
+}
+$("#bFamilia").onclick = () => $("#sFam").classList.remove("hide");
+$("#bCompartir").onclick = async () => {
+  const txt = `Únete a "${familia.nombre}" en MisRecados con el código ${familia.codigo}\n${location.origin + location.pathname}`;
+  if (navigator.share) { try { await navigator.share({ text: txt }); } catch{} }
+  else { await navigator.clipboard.writeText(txt); toast("Invitación copiada."); }
+};
+$("#bDejar").onclick = async () => {
+  if (!confirm("¿Salir de esta familia? Dejarás de ver sus encargos.")) return;
+  const fid = familia.id;
+  $("#sFam").classList.add("hide"); pararEscuchas(); ver("vCarga");
+  try {
+    await updateDoc(doc(db, "familias", fid), {
+      miembros: arrayRemove(user.uid), [`miembrosInfo.${user.uid}`]: deleteField()
+    });
+    await setDoc(doc(db, "usuarios", user.uid), { familiaId: null }, { merge: true });
+    ver("vFamilia");
+  } catch(e){ toast(errTxt(e)); entrarFamilia(fid); }
+};
+
+/* Cerrar hojas */
+document.querySelectorAll(".back").forEach(bk => bk.addEventListener("click", e => {
+  if (e.target === bk || e.target.hasAttribute("data-close")) bk.classList.add("hide");
+}));
+
+/* Service worker */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
