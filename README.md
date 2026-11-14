@@ -24,12 +24,14 @@ Compras y recados de la familia en una sola lista compartida. Cada encargo lleva
 - **+** para apuntar algo: qué, dónde y urgencia.
 - **🙋 Me lo llevo yo** → nadie más lo compra por duplicado.
 - **✅ Entregado** → a quien lo pidió le llega un aviso.
+- Quien creó la familia puede, desde 👪 Familia, **⏸ pausar** a alguien (deja de ver la lista hasta que lo active) o **✖ quitarlo** (sale y no puede volver a entrar con el código, salvo que le permita volver).
 
 ## Estructura de datos
 ```
 usuarios/{uid}            nombre, familiaId
 codigos/{CODIGO}          familiaId, creadoPor
-familias/{fid}            nombre, codigo, miembros[], miembrosInfo{uid:{nombre,color}}
+familias/{fid}            nombre, codigo, creadoPor, miembros[], pausados[], expulsados[],
+                          miembrosInfo{uid:{nombre,color}}
 familias/{fid}/items/{id} que, detalle, donde, urgencia, estado,
                           pedidoPor, pedidoPorNombre, encargadoPor, encargadoPorNombre,
                           creado, encargadoEn, entregadoEn

@@ -109,7 +109,14 @@
   .row2{display:flex;gap:10px;margin-top:18px}
   .members{list-style:none;padding:0;margin:8px 0}
   .members li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
-  .dot{width:14px;height:14px;border-radius:50%;background:var(--c)}
+  .dot{width:14px;height:14px;border-radius:50%;background:var(--c);flex:0 0 auto}
+  .members .mn{flex:1;min-width:0}
+  .members small{color:var(--sub)}
+  .members li.sub-h{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--sub);border:0;padding:14px 0 2px}
+  .mb{padding:6px 9px;font-size:.8rem;font-weight:600;background:#f1f3f2;color:var(--sub);white-space:nowrap}
+  .mb.quitar{background:#fdecec;color:var(--bad)}
+  .mb.activar,.mb.readmitir{background:#e6f0ee;color:var(--pri2)}
   .code{font-size:1.8rem;font-weight:800;letter-spacing:.2em;text-align:center;color:var(--pri);
     background:#e6f0ee;border-radius:12px;padding:12px;margin:8px 0}
   .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);
@@ -156,6 +163,16 @@
   </div>
   <div class="err" id="fErr"></div>
   <button class="btn ghost" id="bSalir1" style="margin-top:16px">Cerrar sesión</button>
+</section>
+
+<!-- En pausa -->
+<section id="vPausa" class="center hide">
+  <h1>⏸ En pausa</h1>
+  <p class="sub">Tu acceso a <b id="paFam"></b> está en pausa. Cuando te vuelvan a activar, verás la lista otra vez.</p>
+  <div class="stack">
+    <button class="btn sec" id="bDejar2">Salir de esta familia</button>
+    <button class="btn ghost" id="bSalir3">Cerrar sesión</button>
+  </div>
 </section>
 
 <!-- App -->
@@ -267,7 +284,7 @@ const URG_ORDEN = { urgente:0, hoy:1, normal:2 };
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const vistas = ["vCarga","vLogin","vFamilia","vApp"];
+const vistas = ["vCarga","vLogin","vFamilia","vPausa","vApp"];
 const ver = id => vistas.forEach(v => $("#"+v).classList.toggle("hide", v !== id));
 
 let user = null, perfil = null, familia = null, items = [];
@@ -339,7 +356,7 @@ $("#bRegistro").onclick = async () => {
   catch(e){ $("#lErr").textContent = errTxt(e); }
 };
 const salir = () => { pararEscuchas(); signOut(auth); };
-$("#bSalir1").onclick = salir; $("#bSalir2").onclick = salir;
+$("#bSalir1").onclick = salir; $("#bSalir2").onclick = salir; $("#bSalir3").onclick = salir;
 
 onAuthStateChanged(auth, async u => {
   user = u; pararEscuchas();
@@ -399,7 +416,10 @@ $("#bUnirse").onclick = async () => {
     });
     await setDoc(doc(db, "usuarios", user.uid), { nombre, familiaId: fid }, { merge: true });
     entrarFamilia(fid);
-  } catch(e){ $("#fErr").textContent = errTxt(e); }
+  } catch(e){
+    $("#fErr").textContent = String(e.code).includes("permission-denied")
+      ? "No puedes unirte a esa familia. Pide permiso a quien la creó." : errTxt(e);
+  }
 };
 
 /* ---------- Escuchas en tiempo real ---------- */
@@ -407,16 +427,29 @@ function pararEscuchas(){
   unsubFam?.(); unsubItems?.(); unsubFam = unsubItems = null;
   familia = null; items = []; primeraCarga = true;
 }
+const cerrarHojas = () => document.querySelectorAll(".back").forEach(b => b.classList.add("hide"));
 function entrarFamilia(fid){
   pararEscuchas(); ver("vCarga");
   unsubFam = onSnapshot(doc(db, "familias", fid), s => {
-    if (!s.exists()) return;
+    if (!s.exists()) return expulsado();
     familia = { id: s.id, ...s.data() };
-    if (!familia.miembros.includes(user.uid)){ pararEscuchas(); ver("vFamilia"); return; }
     $("#hFam").textContent = familia.nombre;
+    // En pausa: no ve la lista hasta que el administrador lo reactive
+    if ((familia.pausados || []).includes(user.uid)){
+      unsubItems?.(); unsubItems = null; items = [];
+      $("#paFam").textContent = familia.nombre;
+      cerrarHojas(); ver("vPausa"); return;
+    }
+    if (!familia.miembros.includes(user.uid)) return expulsado();
+    if (!unsubItems) escucharItems(fid);
     pintar(); pintarFamilia(); ver("vApp");
-  }, e => { $("#fErr").textContent = errTxt(e); ver("vFamilia"); });
-
+  }, e => {
+    if (String(e.code).includes("permission-denied")) return expulsado();
+    $("#fErr").textContent = errTxt(e); ver("vFamilia");
+  });
+}
+function escucharItems(fid){
+  primeraCarga = true;
   unsubItems = onSnapshot(collection(db, "familias", fid, "items"), s => {
     if (!primeraCarga){
       s.docChanges().forEach(ch => {
@@ -430,7 +463,14 @@ function entrarFamilia(fid){
     primeraCarga = false;
     items = s.docs.map(d => ({ id: d.id, ...d.data() }));
     pintar();
-  });
+  }, () => {}); // si te pausan, la escucha se corta; la ficha de familia ya lo gestiona
+}
+// Te han quitado de la familia
+async function expulsado(){
+  pararEscuchas(); cerrarHojas();
+  try { await setDoc(doc(db, "usuarios", user.uid), { familiaId: null }, { merge: true }); } catch {}
+  $("#fErr").textContent = "Ya no formas parte de esa familia.";
+  ver("vFamilia");
 }
 
 /* ---------- Avisos (con la app abierta o en segundo plano reciente) ---------- */
@@ -640,30 +680,77 @@ $("#bGuardar").onclick = async () => {
 };
 
 /* ---------- Panel familia ---------- */
+const esAdmin = () => familia?.creadoPor === user.uid;
 function pintarFamilia(){
   $("#sfNombre").textContent = familia.nombre;
   $("#sfCodigo").textContent = familia.codigo;
-  $("#sfMiembros").innerHTML = familia.miembros.map(uid =>
-    `<li><span class="dot" style="--c:${colorDe(uid)}"></span>${esc(nombreDe(uid))}${uid===user.uid?" <small style='color:var(--sub)'>(tú)</small>":""}</li>`).join("");
+  const admin = esAdmin();
+  const btn = (a, uid, txt) => `<button class="mb ${a}" data-m="${a}" data-uid="${uid}">${txt}</button>`;
+  const fila = (uid, extra, botones) => `<li><span class="dot" style="--c:${colorDe(uid)}"></span>
+    <span class="mn">${esc(nombreDe(uid))}${extra}</span>${admin && uid !== user.uid ? botones : ""}</li>`;
+  const etiqueta = uid => {
+    const t = [uid === user.uid && "tú", uid === familia.creadoPor && "admin"].filter(Boolean).join(", ");
+    return t ? ` <small>(${t})</small>` : "";
+  };
+  const paus = familia.pausados || [], fuera = familia.expulsados || [];
+  let html = familia.miembros.map(uid => fila(uid, etiqueta(uid),
+    btn("pausar", uid, "⏸ Pausar") + btn("quitar", uid, "✖ Quitar"))).join("");
+  if (paus.length) html += `<li class="sub-h">En pausa</li>` + paus.map(uid => fila(uid, "",
+    btn("activar", uid, "▶ Activar") + btn("quitar", uid, "✖ Quitar"))).join("");
+  if (admin && fuera.length) html += `<li class="sub-h">Quitados</li>` + fuera.map(uid => fila(uid, "",
+    btn("readmitir", uid, "Permitir volver"))).join("");
+  if (admin && (familia.miembros.length > 1 || paus.length))
+    html += `<li class="sub-h" style="text-transform:none;font-weight:400">⏸ Pausar: deja de ver la lista hasta que lo actives.<br>✖ Quitar: sale de la familia y no puede volver a entrar con el código.</li>`;
+  $("#sfMiembros").innerHTML = html;
 }
+$("#sfMiembros").onclick = async e => {
+  const b = e.target.closest("button[data-m]"); if (!b || !esAdmin()) return;
+  const accion = b.dataset.m, uid = b.dataset.uid, nombre = nombreDe(uid);
+  const pregunta = {
+    pausar: `¿Pausar a ${nombre}? No verá la lista hasta que lo actives.`,
+    quitar: `¿Quitar a ${nombre} de la familia? No podrá volver a entrar con el código, salvo que le permitas volver.`
+  }[accion];
+  if (pregunta && !confirm(pregunta)) return;
+  const ref = doc(db, "familias", familia.id);
+  const bt = writeBatch(db);
+  if (accion === "pausar")    bt.update(ref, { miembros: arrayRemove(uid), pausados: arrayUnion(uid) });
+  if (accion === "activar")   bt.update(ref, { pausados: arrayRemove(uid), miembros: arrayUnion(uid) });
+  if (accion === "quitar")    bt.update(ref, { miembros: arrayRemove(uid), pausados: arrayRemove(uid), expulsados: arrayUnion(uid) });
+  if (accion === "readmitir") bt.update(ref, { expulsados: arrayRemove(uid) });
+  // Lo que se iba a llevar esa persona vuelve a quedar pendiente
+  if (accion === "pausar" || accion === "quitar")
+    items.filter(i => i.estado === "encargado" && i.encargadoPor === uid).forEach(i =>
+      bt.update(doc(db, "familias", familia.id, "items", i.id),
+        { estado: "pendiente", encargadoPor: deleteField(), encargadoPorNombre: deleteField(), encargadoEn: deleteField() }));
+  try {
+    await bt.commit();
+    toast({ pausar: `${nombre} está en pausa ⏸`, activar: `${nombre} vuelve a estar activo ▶`,
+      quitar: `${nombre} ya no está en la familia`, readmitir: `${nombre} puede volver a unirse con el código` }[accion]);
+  } catch(err){ toast(errTxt(err)); }
+};
 $("#bFamilia").onclick = () => $("#sFam").classList.remove("hide");
 $("#bCompartir").onclick = async () => {
   const txt = `Únete a "${familia.nombre}" en MisRecados con el código ${familia.codigo}\n${location.origin + location.pathname}`;
   if (navigator.share) { try { await navigator.share({ text: txt }); } catch{} }
   else { await navigator.clipboard.writeText(txt); toast("Invitación copiada."); }
 };
-$("#bDejar").onclick = async () => {
-  if (!confirm("¿Salir de esta familia? Dejarás de ver sus encargos.")) return;
+async function dejarFamilia(){
+  const aviso = esAdmin() && familia.miembros.length > 1
+    ? "Eres quien gestiona la familia: si sales, nadie podrá pausar ni quitar miembros. ¿Salir igualmente?"
+    : "¿Salir de esta familia? Dejarás de ver sus encargos.";
+  if (!confirm(aviso)) return;
   const fid = familia.id;
-  $("#sFam").classList.add("hide"); pararEscuchas(); ver("vCarga");
+  cerrarHojas(); pararEscuchas(); ver("vCarga");
   try {
     await updateDoc(doc(db, "familias", fid), {
-      miembros: arrayRemove(user.uid), [`miembrosInfo.${user.uid}`]: deleteField()
+      miembros: arrayRemove(user.uid), pausados: arrayRemove(user.uid),
+      [`miembrosInfo.${user.uid}`]: deleteField()
     });
     await setDoc(doc(db, "usuarios", user.uid), { familiaId: null }, { merge: true });
     ver("vFamilia");
   } catch(e){ toast(errTxt(e)); entrarFamilia(fid); }
-};
+}
+$("#bDejar").onclick = dejarFamilia; $("#bDejar2").onclick = dejarFamilia;
 
 /* Cerrar hojas */
 document.querySelectorAll(".back").forEach(bk => bk.addEventListener("click", e => {

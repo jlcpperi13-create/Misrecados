@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() { return request.auth != null; }
+    function yo() { return request.auth.uid; }
+    function lista(d, campo) { return d.get(campo, []); }
+
+    // Perfil de cada usuario: solo lo toca él mismo
+    match /usuarios/{u} {
+      allow read, write: if logueado() && yo() == u;
+    }
+
+    // Códigos de invitación
+    match /codigos/{codigo} {
+      allow get: if logueado();
+      allow create: if logueado() && request.resource.data.creadoPor == yo();
+    }
+
+    match /familias/{fid} {
+      function antes()   { return resource.data; }
+      function despues() { return request.resource.data; }
+      function cambia()  { return despues().diff(antes()).affectedKeys(); }
+      function soloMiInfo() {
+        return despues().miembrosInfo.diff(antes().miembrosInfo).affectedKeys().hasOnly([yo()]);
+      }
+      function esAdmin() { return antes().creadoPor == yo(); }
+
+      // Ven la ficha de la familia los miembros activos y los que están en pausa
+      allow get: if logueado()
+        && (yo() in antes().miembros || yo() in lista(antes(), 'pausados'));
+
+      allow create: if logueado()
+        && despues().creadoPor == yo()
+        && despues().miembros == [yo()];
+
+      allow update: if logueado() && (
+        // Quien creó la familia gestiona miembros (pausar, activar, quitar, permitir volver)
+        (esAdmin()
+          && despues().creadoPor == antes().creadoPor
+          && despues().codigo == antes().codigo)
+
+        // Unirse con el código (no si estás en pausa o te han quitado)
+        || (cambia().hasOnly(['miembros', 'miembrosInfo'])
+          && !(yo() in lista(antes(), 'expulsados'))
+          && !(yo() in lista(antes(), 'pausados'))
+          && yo() in despues().miembros
+          && despues().miembros.removeAll([yo()]) == antes().miembros.removeAll([yo()])
+          && soloMiInfo())
+
+        // Salir uno mismo de la familia
+        || (cambia().hasOnly(['miembros', 'miembrosInfo', 'pausados'])
+          && !(yo() in despues().miembros)
+          && !(yo() in lista(despues(), 'pausados'))
+          && despues().miembros == antes().miembros.removeAll([yo()])
+          && lista(despues(), 'pausados') == lista(antes(), 'pausados').removeAll([yo()])
+          && soloMiInfo())
+      );
+    }
+
+    // Encargos: solo los miembros activos
+    match /familias/{fid}/items/{id} {
+      allow read, write: if logueado()
+        && yo() in get(/databases/$(database)/documents/familias/$(fid)).data.miembros;
+    }
+  }
+}
